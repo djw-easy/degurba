@@ -1,11 +1,6 @@
 import numpy as np
 import os
 from .io import Raster, Vector, geometry_window, overlap
-from rasterio import features
-from scipy import ndimage
-
-
-
 
 
 def stat_func(array, stat):

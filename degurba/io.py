@@ -1,14 +1,13 @@
-from turtle import left, right
-from typing_extensions import Self
+from itertools import count
 import rasterio as rio
 from osgeo import gdal, ogr
 from rasterio import features
+from rasterio.windows import Window
 from rasterio.transform import guard_transform
 import numpy as np
 import math
 import os
 import json
-from typing import Union, TypeVar
 from affine import Affine
 
 
@@ -281,13 +280,24 @@ class Vector(object):
 
 
 class Raster(object):
+    """Return a numpy masked array by the window of arr
+    Parameters
+    ----------
+    raster: numpy array or a path to an raster source
+        If raster is a numpy array, it's shape should be 2D or 3D. 
+        If raster is a 3D numpy array, it's shape must be (channels, height, weight)
+    """
 
     def __init__(self, raster,
                  affine=None,
                  crs=None,
-                 nodata=None,
-                 band=1):
+                 nodata=None, 
+                 band=None):
         self.crs = crs
+        self.src = None
+        self._array = None
+        self._nodata = nodata
+        self.band = band
 
         if isinstance(raster, np.ndarray):
             if affine is None:
@@ -295,44 +305,89 @@ class Raster(object):
             if not len(raster.shape) == 2:
                 raise ValueError("The inpute ndarray must be 2-d array")
             # create a mask array by nodata value
-            isnodata = (raster == nodata) | np.isnan(raster)
-            self.array = np.ma.masked_array(raster, isnodata)
-            self.affine = affine
-            self.shape = raster.shape
-        else:
-            src = rio.open(raster, 'r')
-            self.affine = guard_transform(src.transform)
-            self.shape = (src.height, src.width)
-            self.crs = src.crs
-            array = src.read(band)
-            nodataval = src.nodata
-            # create a mask array by nodata value
-            isnodata = (array == nodata) | (array == nodataval)
+            isnodata = None
+            if self._nodata != None:
+                isnodata = (raster == self._nodata)
             # add nan mask (if necessary)
-            isnodata = isnodata | np.isnan(array)
-            # convert numpy array to numpy masked array
-            self.array = np.ma.masked_array(array, isnodata)
-            src = None
+            if np.issubdtype(raster.dtype, np.floating):
+                isnodata = isnodata | np.isnan(raster)
+            self._array = np.ma.masked_array(raster, mask=isnodata)
+            self.dtype = self._array.dtype
+            self.affine = affine
+            if len(self._array.shape) == 3:
+                self.count, self.height, self.width = self._array.shape
+                if self.band:
+                    self.count = len(band) if isinstance(self.band, (tuple, list)) else 1
+                self._array = self._array[self.band, ...]
+            elif len(self._array.shape) != 2:
+                raise ValueError("Must be a 2D or 3D array")
+            else:
+                self.count = 1
+                self.height, self.width = self._array.shape
+            self.shape = (self.height, self.width)
+        elif isinstance(raster, str):
+            self.src = rio.open(raster, 'r')
+            self.affine = guard_transform(self.src.transform)
+            self.crs = self.src.crs
+            self.count = self.src.count
+            if self.band:
+                    self.count = len(band) if isinstance(self.band, (tuple, list)) else 1
+            self.height, self.width = self.src.height, self.src.width
+            self.shape = (self.height, self.width)
+            self.dtype = self.src.dtypes[0]
+        else:
+            raise ValueError('The inpute raster should be a numpy array or a path to an raster source. ')
+
+    @property
+    def array(self):
+        if isinstance(self._array, type(None)):
+            return self._read()
+        else:
+            return self._array
+
+    def _read(self, window=None, boundless=True):
+        if window:
+            window=Window.from_slices(window, boundless=True)
+        indexes = None
+        if self.band:
+            indexes = self.band
+        elif self.count == 1: # if it's a single band raster
+            indexes = 1
+        array = self.src.read(indexes=indexes, window=window, masked=True, boundless=boundless)
+        # create a mask array by nodata value
+        if self._nodata != None:
+            array[array==self._nodata] = np.ma.masked
+        # add nan mask (if necessary)
+        if np.issubdtype(array.dtype, np.floating):
+            array[np.isnan(array)] = np.ma.masked
+        return array
 
     def save(self, path, nodata=None) -> None:
+        # Determine the nodata value
         if nodata is None:
-            if np.issubdtype(self.array.dtype, np.floating):
+            if np.issubdtype(self.dtype, np.floating):
                 nodata = np.nan
             else:
-                nodata = np.iinfo(self.array.dtype).max
-        array = self.array.filled(nodata)
+                nodata = np.iinfo(self.dtype).max
+        # Determine the data tonwrite
+        if isinstance(self._array, type(None)):
+            array = self._read()
+            array = array.filled(nodata)
+        else:
+            array = self._array.filled(nodata)
+        # write the data to desk
         with rio.open(path,
                       'w',
                       driver='GTiff',
                       nodata=nodata,
-                      height=array.shape[0],
-                      width=array.shape[1],
-                      count=1,
+                      height=self.height,
+                      width=self.width,
+                      count=self.count,
                       dtype=array.dtype,
                       crs=self.crs,
                       transform=self.affine,
                       compress='lzw') as dst:
-            dst.write(array, 1)
+            dst.write(array)
 
     def read(self, 
             bounds=None, 
@@ -372,7 +427,10 @@ class Raster(object):
         if not boundless and beyond_extent(win, self.shape):
             raise ValueError("Window/bounds is outside dataset extent and boundless reads are disabled")
 
-        out = boundless_array(self.array, window=win)
+        if isinstance(self._array, type(None)):
+            out = self._read(win=win, boundless=True)
+        else:
+            out = boundless_array(self._array, window=win)
 
         if only_array:
             return out
@@ -411,3 +469,7 @@ class Raster(object):
         array = np.ma.masked_array(clip_raster.array, ~geometry_mask)
 
         return array
+
+    def __del__(self):
+        if None == self.src:
+            self.src.close()

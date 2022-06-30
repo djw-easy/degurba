@@ -132,11 +132,12 @@ class DEGURBA:
         return rural_grid_cells_mask.astype(np.bool_)
 
     def classify_grid_cells_l1(self):
-        urban_centres = self._get_urban_centres(self.pn.array)
+        pn_array = self.pn.array
+        urban_centres = self._get_urban_centres(pn_array)
         urban_clusters = self._get_urban_clusters(
-            self.pn.array, urban_centres)
+            pn_array, urban_centres)
         rural_grid_cells = self._get_rural_grid_cells(
-            self.pn.array, urban_centres, urban_clusters)
+            pn_array, urban_centres, urban_clusters)
         grid_cells_clas = [urban_centres,
                            urban_clusters, rural_grid_cells]
         grid_cells_l1 = np.zeros(

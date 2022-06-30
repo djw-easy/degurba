@@ -1,4 +1,3 @@
-from itertools import count
 import rasterio as rio
 from osgeo import gdal, ogr
 from rasterio import features

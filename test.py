@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from degurba.degurba import DEGURBA
+from degurba import DEGURBA
 
 border_path = r"D:\Files\SDGs\SDG11.7.1\Codes\Data\Border\BJ_Street\BJStreet.shp"
 pn_path = r"D:\Files\SDGs\SDG11.7.1\Codes\Data\pd\bj_ppp_2020_1000m_UNadj.tif"

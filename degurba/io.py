@@ -346,7 +346,7 @@ class Raster(object):
 
     def _read(self, window=None, boundless=True):
         if window:
-            window=Window.from_slices(window, boundless=True)
+            window = Window.from_slices(rows=window[0], cols=window[1], boundless=True)
         indexes = None
         if self.band:
             indexes = self.band

@@ -1,3 +1,5 @@
+from turtle import right
+from fiona import bounds
 import rasterio as rio
 from osgeo import gdal, ogr
 from rasterio import features
@@ -127,6 +129,26 @@ def geometry_bounds(geometry):
         return (left, bottom, right, top)
 
 
+def geometries_bounds(geometries):
+    """Return a (left, bottom, right, top) bounding box.
+    Parameters
+    ----------
+    geometries : iterable over geometries (GeoJSON-like objects)
+
+    Returns
+    -------
+    tuple
+        Bounding box: (left, bottom, right, top)
+    """
+    bounds = []
+    for geometry in geometries:
+        bounds.append(geometry_bounds(geometry))
+    bounds = np.array(bounds)
+    left, right = np.min(bounds[:, 0]), np.max(bounds[:, 2])
+    bottom, top = np.min(bounds[:, 1]), np.max(bounds[:, 3])
+    return (left, bottom, right, top)
+
+
 def geometry_window(geometry, affine):
     bounds = geometry_bounds(geometry)
     window = bounds_window(bounds, affine)
@@ -198,8 +220,9 @@ def boundless_array(arr, window):
 
 class Vector(object):
 
-    def __init__(self, path,
-                 layer=0) -> None:
+    def __init__(self, path, layer=0):
+        if not os.path.isabs(path):
+            path = os.path.abspath(path)
         if not os.path.exists(path):
             raise ValueError("The path {} is not exist.".format(path))
         self.ds = ogr.Open(path, update=1)
@@ -303,14 +326,13 @@ class Raster(object):
                 raise ValueError("Specify affine transform for numpy arrays")
             if not len(raster.shape) == 2:
                 raise ValueError("The inpute ndarray must be 2-d array")
+            self._array = raster
             # create a mask array by nodata value
-            isnodata = None
             if self._nodata != None:
-                isnodata = (raster == self._nodata)
+                self._array[self._array==self._nodata] = np.ma.masked
             # add nan mask (if necessary)
-            if np.issubdtype(raster.dtype, np.floating):
-                isnodata = isnodata | np.isnan(raster)
-            self._array = np.ma.masked_array(raster, mask=isnodata)
+            if np.issubdtype(self._array.dtype, np.floating):
+                self._array[np.isnan(self._array)] = np.ma.masked
             self.dtype = self._array.dtype
             self.affine = affine
             if len(self._array.shape) == 3:
@@ -325,6 +347,8 @@ class Raster(object):
                 self.height, self.width = self._array.shape
             self.shape = (self.height, self.width)
         elif isinstance(raster, str):
+            if not os.path.isabs(raster):
+                raster = os.path.abspath(raster)
             self.src = rio.open(raster, 'r')
             self.affine = guard_transform(self.src.transform)
             self.crs = self.src.crs
@@ -362,6 +386,8 @@ class Raster(object):
         return array
 
     def save(self, path, nodata=None) -> None:
+        if not os.path.isabs(path):
+            path = os.path.abspath(path)
         # Determine the nodata value
         if nodata is None:
             if np.issubdtype(self.dtype, np.floating):
@@ -386,7 +412,7 @@ class Raster(object):
                       crs=self.crs,
                       transform=self.affine,
                       compress='lzw') as dst:
-            dst.write(array)
+            dst.write(array, 1)
 
     def read(self, 
             bounds=None, 
@@ -440,7 +466,7 @@ class Raster(object):
 
         return Raster(out, new_affine, self.crs)
 
-    def read_from_geometry(self, geometry, boundless=True, all_touched=False) -> np.ma.MaskedArray:
+    def read_from_geometry(self, geometries, boundless=True, all_touched=False):
         """
         Parameters
         ----------
@@ -451,14 +477,13 @@ class Raster(object):
             are selected by Bresenham's line algorithm will be burned in.
         Returns
         -------
-        ndarray: boolean
+        Raster object with update affine and array info
         """
 
-        bounds = geometry_bounds(geometry)
+        bounds = geometries_bounds(geometries)
         window = bounds_window(bounds, self.affine)
 
         clip_raster = self.read(window=window, boundless=boundless)
-        geometries = [geometry]
         geometry_mask = features.geometry_mask(
             geometries=geometries,
             out_shape=clip_raster.shape,
@@ -467,8 +492,5 @@ class Raster(object):
             invert=True)
         array = np.ma.masked_array(clip_raster.array, ~geometry_mask)
 
-        return array
+        return Raster(array, clip_raster.affine, clip_raster.crs)
 
-    def __del__(self):
-        if None == self.src:
-            self.src.close()

@@ -76,7 +76,8 @@ def zonal_stats(vector, raster,
 
     values = []
     for i, geometry in enumerate(vector['geometry'], 1):
-        array = raster.read_from_geometry(geometry, all_touched=all_touched)
+        clip_raster = raster.read_from_geometry([geometry], all_touched=all_touched)
+        array = clip_raster.array
         geometry_mask = ~array.mask
 
         if stat != None:

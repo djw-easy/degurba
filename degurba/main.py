@@ -150,7 +150,8 @@ class DEGURBA:
 
         return grid_cells_l1
 
-    def classify_local_units_l1(self, local_units, field=None, out_array=False, grid_cells_l1=None):
+    def classify_local_units_l1(self, local_units, field=None, 
+                                grid_cells_l1=None, all_touched=False):
         """
         Parameters:
         -----------
@@ -162,6 +163,8 @@ class DEGURBA:
 
         def classify(grid_cells):
             total_count = grid_cells.count()
+            if not total_count:
+                return 0
             urban_centres = self.grid_cells_l1_cla['urban_centres']
             urban_centres_cells_r = np.count_nonzero(
                 grid_cells == urban_centres) / total_count
@@ -180,5 +183,6 @@ class DEGURBA:
                 return self.local_units_l1_cla['rural_areas']
 
         local_units = zonal_stats(
-            local_units, grid_cells_l1, zone_func=classify, field=field, out_array=out_array)
+            local_units, grid_cells_l1, zone_func=classify, 
+            field=field, all_touched=all_touched)
         return local_units

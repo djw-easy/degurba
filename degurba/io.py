@@ -338,8 +338,18 @@ class Raster(object):
             if len(self._array.shape) == 3:
                 self.count, self.height, self.width = self._array.shape
                 if self.band:
-                    self.count = len(band) if isinstance(self.band, (tuple, list)) else 1
-                self._array = self._array[self.band, ...]
+                    self.count = len(self.band) if isinstance(self.band, (tuple, list)) else self.band
+                    if self.count==1:
+                        if self.band<=0:
+                            raise ValueError('band must be positive integer')
+                        else:
+                            self._array = self._array[self.band-1, ...]
+                    else:
+                        indexes = np.array(self.band)
+                        if np.count_nonzero(indexes<=0):
+                            raise ValueError('band must be positive integer')
+                        indexes -= 1
+                        self._array = self._array[indexes, ...]
             elif len(self._array.shape) != 2:
                 raise ValueError("Must be a 2D or 3D array")
             else:
@@ -354,7 +364,7 @@ class Raster(object):
             self.crs = self.src.crs
             self.count = self.src.count
             if self.band:
-                    self.count = len(band) if isinstance(self.band, (tuple, list)) else 1
+                self.count = len(self.band) if isinstance(self.band, (tuple, list)) else 1
             self.height, self.width = self.src.height, self.src.width
             self.shape = (self.height, self.width)
             self.dtype = self.src.dtypes[0]
@@ -412,7 +422,11 @@ class Raster(object):
                       crs=self.crs,
                       transform=self.affine,
                       compress='lzw') as dst:
-            dst.write(array, 1)
+            if self.count==1:
+                dst.write(array, 1)
+            else:
+                for i in range(1, self.count+1):
+                    dst.write(array[i-1], i)
 
     def read(self, 
             bounds=None, 

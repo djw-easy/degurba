@@ -6,6 +6,7 @@ pn_path = './test_data/bj_ppp_2020_1000m_UNadj.tif'
 
 degurba = DEGURBA(pn_path)
 grid_cells_l1 = degurba.classify_grid_cells_l1()
+grid_cells_l1.save('./test_data/grid_cla.tif', nodata=-9999)
 
 plt.imshow(grid_cells_l1.array)
 

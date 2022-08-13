@@ -329,10 +329,12 @@ class Raster(object):
             self._array = raster
             # create a mask array by nodata value
             if self._nodata != None:
-                self._array[self._array==self._nodata] = np.ma.masked
+                self._array = np.ma.masked_array(self._array, 
+                                    self._array==self._nodata)
             # add nan mask (if necessary)
             if np.issubdtype(self._array.dtype, np.floating):
-                self._array[np.isnan(self._array)] = np.ma.masked
+                self._array = np.ma.masked_array(self._array, 
+                                    np.isnan(self._array))
             self.dtype = self._array.dtype
             self.affine = affine
             if len(self._array.shape) == 3:

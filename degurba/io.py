@@ -1,15 +1,13 @@
-from turtle import right
-from fiona import bounds
+import os
+import json
+import math
+import numpy as np
 import rasterio as rio
+from affine import Affine
 from osgeo import gdal, ogr
 from rasterio import features
 from rasterio.windows import Window
 from rasterio.transform import guard_transform
-import numpy as np
-import math
-import os
-import json
-from affine import Affine
 
 
 def clip_raster(in_raster,
@@ -324,8 +322,6 @@ class Raster(object):
         if isinstance(raster, np.ndarray):
             if affine is None:
                 raise ValueError("Specify affine transform for numpy arrays")
-            if not len(raster.shape) == 2:
-                raise ValueError("The inpute ndarray must be 2-d array")
             self._array = raster
             # create a mask array by nodata value
             if self._nodata != None:
@@ -391,10 +387,10 @@ class Raster(object):
         array = self.src.read(indexes=indexes, window=window, masked=True, boundless=boundless)
         # create a mask array by nodata value
         if self._nodata != None:
-            array[array==self._nodata] = np.ma.masked
+            array = np.ma.masked_array(array, array==self._nodata)
         # add nan mask (if necessary)
         if np.issubdtype(array.dtype, np.floating):
-            array[np.isnan(array)] = np.ma.masked
+            array = np.ma.masked_array(array, np.isnan(array))
         return array
 
     def save(self, path, nodata=None) -> None:

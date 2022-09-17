@@ -74,13 +74,16 @@ class DEGURBA:
                 [1, 1, 1]
             ]
         )
-        while True:
-            mask = ndimage.convolve(
-                urban_centres_mask, weights=w, mode='constant', cval=0)
-            mask = np.logical_and(mask >= 5, urban_centres_mask == 0)
-            if 0 == np.count_nonzero(mask):
-                break
-            urban_centres_mask[mask] = 1
+        for i in range(1, num_features+1):
+            mask = label == i
+            mask = mask.astype(np.byte)
+            while True:
+                mask = ndimage.convolve(
+                    mask, weights=w, mode='constant', cval=0)
+                mask = np.logical_and(mask >= 5, urban_centres_mask == 0)
+                if 0 == np.count_nonzero(mask):
+                    break
+                urban_centres_mask[mask] = 1
         return urban_centres_mask.astype(np.bool_)
 
     def _get_urban_clusters(self, pn, urban_centres_mask):

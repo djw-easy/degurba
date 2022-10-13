@@ -1,6 +1,7 @@
 import numpy as np
 import os
 from .io import Raster, Vector, geometry_window, overlap
+from .io import geometry_bounds
 
 
 def stat_func(array, stat):
@@ -17,14 +18,14 @@ def stat_func(array, stat):
     return stats[stat](array)
 
 
-def zonal_stats(vector, raster,
+def zonal_stats(vector, 
+                raster,
+                field, 
                 affine=None,
                 crs=None,
                 nodata=None,
                 stat=None,
                 zone_func=None,
-                field=None,
-                out_array=False,
                 all_touched=False
                 ):
     """
@@ -32,6 +33,9 @@ def zonal_stats(vector, raster,
     ----------
     vector: path to an vector source or io.Vector object or ndarray
     raster: path to an raster source or io.Raster object
+    field: str, optional
+        field in the vector
+        defaults to None
     affine: Affine instance
         required only for ndarrays, otherwise it is read from src
     crs: str, dict, or CRS; optional
@@ -43,11 +47,6 @@ def zonal_stats(vector, raster,
         The optional parameters are min, max, mean, sum, count, std, median, range
     zone_func: callable
         function to apply to zone ndarray prior to computing stats
-    field: str, optional
-        field in the vector
-        defaults to None
-    out_array: bool, optional
-        If True, return an array of same shape and data type as `source` in which to store results.
     all_touched: bool, optional
         Whether to include every raster cell touched by a geometry, or only
         those having a center point within the polygon.
@@ -55,9 +54,6 @@ def zonal_stats(vector, raster,
     """
     if stat and zone_func:
         raise ValueError("Specify either stat or zone_func")
-
-    if field and out_array:
-        raise ValueError("Specify either field or out_array")
 
     if isinstance(vector, str):
         if not os.path.exists(vector):
@@ -71,17 +67,23 @@ def zonal_stats(vector, raster,
         else:
             raster = Raster(raster, affine=affine, crs=crs, nodata=nodata)
 
-    if out_array:
-        out_array = np.zeros(raster.shape, dtype=raster.array.dtype)
-
     values = []
-    for i, geometry in enumerate(vector['geometry'], 1):
+    for name, geometry in zip(vector['乡'], vector['geometry']):
         clip_raster = raster.read_from_geometry([geometry], all_touched=all_touched)
         array = clip_raster.array
         geometry_mask = ~array.mask
+        if not np.any(geometry_mask):
+            left, bottom, right, top = geometry_bounds(geometry)
+            center_x, center_y = (left + right) / 2, (bottom + top) / 2
+            center_row, center_col = raster.index(center_x, center_y)
+            value = raster.array[center_row, center_col]
+            values.append(int(value))
+            continue
 
         if stat != None:
             value = stat_func(array, stat)
+            values.append(int(value))
+            continue
 
         # execute zone_func on masked zone ndarray
         if zone_func is not None:
@@ -90,32 +92,11 @@ def zonal_stats(vector, raster,
                                  'which accepts function a '
                                  'single `zone_array` arg.'))
             value = zone_func(array)
-
-        if isinstance(out_array, np.ndarray):
-            win = geometry_window(geometry, raster.affine)
-            (or_start, or_stop), (oc_start, oc_stop) = overlap(out_array.shape, win)
-            (r_start, r_stop), (c_start, c_stop) = win
-            if r_start<0:
-                g_r_start = -r_start
-                g_r_stop = or_stop-or_start+g_r_start
-            else:
-                g_r_start = 0
-                g_r_stop = or_stop-or_start
-            if c_start<0:
-                g_c_start = -c_start
-                g_c_stop = oc_stop-oc_start+g_c_start
-            else:
-                g_c_start = 0
-                g_c_stop = oc_stop-oc_start
-            geometry_mask = geometry_mask[g_r_start:g_r_stop, g_c_start:g_c_stop]
-            out_array[or_start:or_stop, oc_start:oc_stop][geometry_mask] = value
-        else:
-            values.append(value)
+            values.append(int(value))
+            continue
 
     if field != None:
         vector.create_field(name=field, type='float', values=values)
         return vector
 
-    if isinstance(out_array, np.ndarray):
-        return out_array
 

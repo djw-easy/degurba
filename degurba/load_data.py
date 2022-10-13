@@ -1,6 +1,7 @@
 import os
 import urllib.request
 import difflib
+from .io import Raster, Vector
 
 
 gpw_v4 = {
@@ -9,15 +10,27 @@ gpw_v4 = {
     "valid_years": [2000, 2005, 2010, 2015, 2020]
 }
 
-worldPop_unadjusted = {
+worldPop_unadjusted_1km = {
     "name": "Unconstrained individual countries 2000-2020  ( 1km resolution )",
     "base_url": "https://data.worldpop.org/GIS/Population/Global_2000_2020_1km/{year}/{country_upper}/{country_lower}_ppp_{year}_1km_Aggregated.tif",
     "valid_years": list(range(2000, 2021))
 }
 
-worldPop_adjusted = {
+worldPop_adjusted_1km = {
     "name": "Unconstrained individual countries 2000-2020 UN adjusted  ( 1km resolution )",
     "base_url": "https://data.worldpop.org/GIS/Population/Global_2000_2020_1km_UNadj/{year}/{country_upper}/{country_lower}_ppp_{year}_1km_Aggregated_UNadj.tif",
+    "valid_years": list(range(2000, 2021))
+}
+
+worldPop_unadjusted_100m = {
+    "name": "Unconstrained individual countries 2000-2020  ( 1km resolution )",
+    "base_url": "https://data.worldpop.org/GIS/Population/Global_2000_2020/{year}/{country_upper}/{country_lower}_ppp_{year}.tif",
+    "valid_years": list(range(2000, 2021))
+}
+
+worldPop_adjusted_100m = {
+    "name": "Unconstrained individual countries 2000-2020 UN adjusted  ( 1km resolution )",
+    "base_url": "https://data.worldpop.org/GIS/Population/Global_2000_2020/{year}/{country_upper}/{country_lower}_ppp_{year}.tif",
     "valid_years": list(range(2000, 2021))
 }
 
@@ -57,57 +70,18 @@ class Dataset:
             file_path (string): Raster file of Population Counts.
     """
     _datasets = {
-        'gpw_v4': gpw_v4,
-        'worldPop_unadjusted': worldPop_unadjusted,
-        'worldPop_adjusted': worldPop_adjusted
+        'gpw_v4',
+        'worldPop_unadjusted',
+        'worldPop_adjusted'
     }
 
     def __init__(
             self,
-            process_dir: str,
-            file_path: str = None,
+            process_dir: str
             ) -> None:
-        
-        if file_path != None:
-            if os.path.exists(file_path):
-                self.file_path = file_path
-                return 
-            else:
-                raise ValueError("The path {} is not exist. ".format(file_path))
         self.process_dir = process_dir
 
-    def _download(self) -> None:
-        file_name = os.path.basename(self.url)
-        self.file_path = os.path.join(
-            self.process_dir, file_name)
-
-        if os.path.exists(self.file_path):
-            raise ValueError("File {} is already exist. ".format(file_name))
-
-        print("Downloading " + file_name + " ... ")
-        urllib.request.urlretrieve(self.url, self.file_path)
-        print("Done")
-
-    def download(
-            self, 
-            dataset: str = 'worldPop_adjusted',
-            year: int = 2020,
-            country: str = None
-            ) -> None:
-        """Download and load Population Counts Dataset.
-            Args:
-                dataset (string): dataset name to download.
-                year: year of dataset to download.
-                country: country of dataset to download, only needed when the dataset is worldpop.
-        """
-        if dataset not in self._datasets.keys():
-            raise ValueError(
-                "The dataset {} is not avaliable. ".format(dataset))
-
-        if year not in self._datasets[dataset].valid_years:
-            raise ValueError(
-                "The dataset {} in {} is not avaliable. ".format(dataset, year))
-
+    def _find_url(self, dataset, year, country, res):
         if dataset.startswith('worldPop'):
             if country == None:
                 raise ValueError(
@@ -119,15 +93,79 @@ class Dataset:
                     country_lower = wp_info[country_upper]
                     print("The country that will be downloaded is {}".format(
                         country_upper))
+                    country_upper = country_lower.upper()
                 else:
                     raise ValueError(
                         "The country {} is not avaliable, avaliable country can be seen in https://hub.worldpop.org/geodata/listing?id=75. ".format(country))
+        if dataset == 'worldPop_unadjusted':
+            if res == 1000:
+                self.dataset = worldPop_unadjusted_1km
+            elif res == 100:
+                self.dataset = worldPop_unadjusted_100m
+            if year not in self.dataset['valid_years']:
+                raise ValueError(
+                    "The dataset {} in {} is not avaliable. ".format(dataset, year))
+            self.url = self.dataset['base_url'].format(year=year, 
+                country_upper=country_lower, country_lower=country_lower)
+        elif dataset == 'worldPop_adjusted':
+            if res == 1000:
+                self.dataset = worldPop_adjusted_1km
+            elif res == 100:
+                self.dataset = worldPop_adjusted_100m
+            if year not in self.dataset['valid_years']:
+                raise ValueError(
+                    "The dataset {} in {} is not avaliable. ".format(dataset, year))
+            self.url = self.dataset['base_url'].format(year=year, 
+                country_upper=country_upper, country_lower=country_lower)
+        elif dataset == 'gpw_v4':
+            self.dataset = gpw_v4
 
-        base_url = self._datasets[dataset]["base_url"]
-        self.url = base_url.format(
-            year=year, country_upper=country_upper, country_lower=country_lower)
-        self.name = self._datasets[dataset]["base_url"] + ' in {}'.format(year)
+    def _download(self) -> None:
+        try:
+            urllib.request.urlretrieve(self.url, self.file_path)
+        except urllib.error.ContentTooShortError:
+            self._download()
+
+    def download(
+            self, 
+            dataset: str = 'worldPop_adjusted',
+            year: int = 2020,
+            country: str = None, 
+            res: int = 1000, 
+            file_path: str = None
+            ) -> None:
+        """Download and load Population Counts Dataset.
+            Args:
+                dataset (string): dataset name to download.
+                year: year of dataset to download.
+                country: country of dataset to download, only needed when the dataset is worldpop.
+        """
+
+        if dataset not in self._datasets:
+            raise ValueError(
+                "The dataset {} is not avaliable. ".format(dataset))
+
+        self._find_url(dataset=dataset, year=year, country=country, res=res)
+
+        if file_path != None:
+            if not os.path.isabs(file_path):
+                file_path = os.path.abspath(file_path)
+            if not os.path.exists(file_path):
+                self.file_path = file_path
+            else:
+                raise ValueError("The path {} is not exist. ".format(file_path))
+        else:
+            file_name = os.path.basename(self.url)
+            self.file_path = os.path.join(
+                self.process_dir, file_name)
+        
+        print("Downloading " + os.path.basename(self.file_path) + " ... ")
         self._download()
+        print('Done')
 
-    def mask(self, mask):
-        pass
+    def mask(self, shp: str, epsg: int):
+        vector = Vector(shp)
+        raster = Raster(self.file_path)
+        raster = raster.reproject(epsg=epsg)
+        raster = raster.read_from_geometry(vector.geometry)
+        raster.save(self.file_path)

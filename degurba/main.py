@@ -35,12 +35,14 @@ class DEGURBA:
         'mostly_uninhabited_area': 33
     }
 
-    def __init__(self, pn,
+    def __init__(self, 
+                 pn=None,
                  affine=None,
                  crs=None,
                  nodata=None,
                  band=1) -> None:
-        self.pn = Raster(pn, affine=affine, crs=crs, nodata=nodata, band=band)
+        if not isinstance(pn, type(pn)):
+            self.pn = Raster(pn, affine=affine, crs=crs, nodata=nodata, band=band)
 
     def _get_urban_centres(self, pn):
         '''Identify the urban centres (high-density clusters), it is done in four steps.
@@ -186,6 +188,6 @@ class DEGURBA:
                 return self.local_units_l1_cla['rural_areas']
 
         local_units = zonal_stats(
-            local_units, grid_cells_l1, zone_func=classify, 
-            field=field, all_touched=all_touched)
+            local_units, grid_cells_l1, field=field, 
+            zone_func=classify, all_touched=all_touched)
         return local_units

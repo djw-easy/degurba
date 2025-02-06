@@ -1,0 +1,5 @@
+.vscode
+__pycache__
+tempCodeRunnerFile.py
+degurba.egg-info
+dist

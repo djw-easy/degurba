@@ -1,5 +1,7 @@
 # Urban Boundary Extraction Software Based on Degree of Urbanization
 
+[![PyPI version](https://badge.fury.io/py/degurba.svg)](https://badge.fury.io/py/degurba)
+
 ## Project Introduction
 
 This project aims to provide a tool for urban boundary extraction based on the Degree of Urbanization (DEGURBA) algorithm. By integrating multi-source geospatial data, it offers a fast, flexible, and efficient method for extracting urban boundaries at specific times and locations, providing technical support and data for researchers.

@@ -24,7 +24,7 @@ from .degurba.main import DEGURBA
 
 import os
 
-pluginPath = os.path.split(os.path.dirname(__file__))[0]
+pluginPath = os.path.dirname(__file__)
 
 
 class DEGURBA_Plugin:
@@ -49,10 +49,10 @@ class DEGURBA_Provider(QgsProcessingProvider):
         return 'DEGURBA'
 
     def icon(self):
-        return QIcon(os.path.join(pluginPath, 'degurba', 'icon.svg'))
+        return QIcon(os.path.join(pluginPath, 'icon.svg'))
 
     def svgIconPath(self):
-        return os.path.join(pluginPath, 'degurba', 'icon.svg')
+        return os.path.join(pluginPath, 'icon.svg')
 
     def loadAlgorithms(self, *args, **kwargs):
         self.addAlgorithm(DownloadWorldPopData())
@@ -80,7 +80,7 @@ class DownloadWorldPopData(QgsProcessingAlgorithm):
         return 'download worldpop grid data'
 
     def icon(self):
-        return QIcon(os.path.join(pluginPath, 'degurba', 'icon.svg'))
+        return QIcon(os.path.join(pluginPath, 'icon.svg'))
 
     def shortHelpString(self):
         return 'Given an input polygon layer and a percentage value, this ' \
@@ -175,7 +175,7 @@ class DownloadGPWV4Data(QgsProcessingAlgorithm):
         return 'download gpwv4 grid data'
 
     def icon(self):
-        return QIcon(os.path.join(pluginPath, 'degurba', 'icon.svg'))
+        return QIcon(os.path.join(pluginPath, 'icon.svg'))
 
     def shortHelpString(self):
         return 'Given an input polygon layer and a percentage value, this ' \
@@ -260,7 +260,7 @@ class GridCellClassification(QgsProcessingAlgorithm):
         return 'Grid Cell Classification'
 
     def icon(self):
-        return QIcon(os.path.join(pluginPath, 'degurba', 'icon.svg'))
+        return QIcon(os.path.join(pluginPath, 'icon.svg'))
 
     def shortHelpString(self):
         return 'Given an input polygon layer and a percentage value, this ' \
@@ -329,7 +329,7 @@ class LocalUnitsClassification(QgsProcessingAlgorithm):
         return 'Local Units Classification'
 
     def icon(self):
-        return QIcon(os.path.join(pluginPath, 'degurba', 'icon.svg'))
+        return QIcon(os.path.join(pluginPath, 'icon.svg'))
 
     def shortHelpString(self):
         return 'Given an input polygon layer and a percentage value, this ' \

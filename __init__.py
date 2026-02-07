@@ -5,5 +5,5 @@
 
 
 def classFactory(iface):
-    from DEGURBA import DEGURBA_Plugin
+    from .DEGURBA import DEGURBA_Plugin
     return DEGURBA_Plugin(iface)

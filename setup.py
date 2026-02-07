@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
     name='degurba',
-    version='0.1',
-    author='Your Name',
+    version='0.2',
+    author='djweasy',
     author_email='djw@lreis.ac.cn',
     description='Urban Boundary Extraction Software Based on Degree of Urbanization',
     long_description=open('README.md', 'r', encoding='utf-8').read(),

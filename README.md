@@ -31,9 +31,11 @@ This project aims to provide a tool for urban boundary extraction based on the D
 - In the QGIS QSGeo4W Shell, run `pip install rasterio`.
 
 #### 3. Configure Plugin
-- Place the project code folder into the QGIS plugin directory.
-- Open QGIS, click on "Manage Plugins" and install the "DEGURBA" plugin.
-- Open the Processing Toolbar and select the appropriate tools for operation.
+- Download the plugin ZIP file (`degurba_qgis.zip`) from [GitHub Releases](https://github.com/djw-easy/degurba/releases).
+- Open QGIS, go to **Plugins** -> **Manage and Install Plugins**.
+- Select the **Install from ZIP** tab on the left.
+- Browse and select the downloaded `degurba_qgis.zip` file, then click **Install Plugin**.
+- Once installed, open the **Processing Toolbox** to find and use the DEGURBA tools.
 
 ### Install using Python
 
